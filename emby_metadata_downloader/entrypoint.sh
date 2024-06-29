@@ -24,11 +24,19 @@ function update_app() {
 
     cd /app || exit
     echo "Update xiaoya_db script..."
+    if [ ! -s /tmp/requirements.txt.sha256sum ]; then
+        sha256sum /app/requirements.txt > /tmp/requirements.txt.sha256sum
+    fi
     git remote set-url origin "${REPO_URL}"
     git fetch --all
     git reset --hard "origin/${BRANCH}"
-    pip install --upgrade pip
-    pip install -r /app/requirements.txt
+    hash_old=$(cat /tmp/requirements.txt.sha256sum)
+    hash_new=$(sha256sum /app/requirements.txt)
+    if [ "${hash_old}" != "${hash_new}" ]; then
+        pip install --upgrade pip
+        pip install -r /app/requirements.txt
+        sha256sum /app/requirements.txt > /tmp/requirements.txt.sha256sum
+    fi
 
 }
 
@@ -37,15 +45,9 @@ function mount_img() {
     if [ ! -d /volume_img ]; then
         mkdir /volume_img
     fi
-    while true; do
-        if mount /dev/loop10 /volume_img; then
-            INFO "img 镜像挂载成功！"
-            break
-        fi
-        sleep 30
-    done
+
     if [ -d /media ]; then
-        if [ -z "$(ls -A /media)" ]; then
+        if [ ! -d /media/电影/2023 ]; then
             if ! rm -rf /media; then
                 ERROR '删除 /media 失败！使用老G速装版emby请勿将任何目录挂载到容器的 /media 目录！程序退出！'
                 exit 1
@@ -55,20 +57,23 @@ function mount_img() {
             exit 1
         fi
     fi
+
+    while true; do
+        if mount /dev/loop7 /volume_img; then
+            INFO "img 镜像挂载成功！"
+            break
+        fi
+        sleep 30
+    done
+
     ln -sf /volume_img/xiaoya /media
     INFO "/media 创建软链接成功！"
 
 }
 
-if [ "${RESTART_AUTO_UPDATE}" == "true" ]; then
-    update_app
-fi
-
 if [ "${IMG_VOLUME}" == "true" ]; then
     mount_img
 fi
-
-cd /app || exit
 
 TWELVE_HOURS=$((12 * 60 * 60))
 
@@ -77,6 +82,12 @@ if [ "$CYCLE" -lt "$TWELVE_HOURS" ]; then
     tail -f /dev/null
 else
     while true; do
+        if [ "${RESTART_AUTO_UPDATE}" == "true" ]; then
+            INFO "开始更新代码！"
+            update_app
+            INFO "更新成功！"
+        fi
+        cd /app || exit
         INFO "开始下载同步！"
         INFO "python3 solid.py $*"
         python3 solid.py $@

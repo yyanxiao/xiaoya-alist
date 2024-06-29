@@ -3,6 +3,7 @@
 # shellcheck disable=SC2086
 # shellcheck disable=SC1091
 # shellcheck disable=SC2154
+# shellcheck disable=SC2004
 PATH=${PATH}:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin:/opt/homebrew/bin
 export PATH
 #
@@ -22,63 +23,7 @@ export PATH
 #
 # ——————————————————————————————————————————————————————————————————————————————————
 #
-# bash -c "$(curl http://docker.xiaoya.pro/update_new.sh | awk '{gsub("/etc/xiaoya", "/ssd/data/docker/xiaoya/xiaoya"); print}')"
-#
-# bash -c "$(curl http://docker.xiaoya.pro/emby_plus.sh \
-# | awk '{gsub("emby/embyserver:4.8.0.56", "amilys/embyserver:4.8.0.56"); print}' \
-# | awk '{gsub("emby/embyserver_arm64v8:4.8.0.56", "amilys/embyserver:4.8.0.56"); print}' \
-# | awk '{gsub("--name emby", "--name xiaoya-emby"); print}')"
-#
-# docker run -d -p 4567:4567 -p 5344:80 -e ALIST_PORT=5344 --restart=always -v /etc/xiaoya:/data --name=xiaoya-tvbox haroldli/xiaoya-tvbox
-# bash -c "$(curl -fsSL https://d.har01d.cn/update_xiaoya.sh)"
-#
-# bash -c "$(curl http://docker.xiaoya.pro/update_new.sh)"
-#
-# find ./ -name "*.strm" -exec sed \-i "s#http://127.0.0.1:5678#自己的地址#g; s# #%20#g; s#|#%7C#g" {} \;
-#
-# bash -c "$(curl http://docker.xiaoya.pro/emby.sh)" -s /媒体库目录
-#
-# bash -c "$(curl http://docker.xiaoya.pro/resilio.sh)" -s /媒体库目录
-#
-# 0 6 * * * bash -c "$(curl http://docker.xiaoya.pro/sync_emby_config.sh)" -s /媒体库目录
-#
-# bash -c "$(curl http://docker.xiaoya.pro/emby_new.sh)" -s --config_dir=xiaoya配置目录 --action=generate_config
-#
-# bash -c "$(curl http://docker.xiaoya.pro/emby_new.sh)" -s --config_dir=xiaoya配置目录
-#
-# 模式0：每天自动清理一次。如果系统重启需要手动重新运行或把命令加入系统启动。
-# bash -c "$(curl -s https://xiaoyahelper.zengge99.eu.org/aliyun_clear.sh | tail -n +2)" -s 0 -tg
-# 模式1：一次性清理，一般用于测试效果。
-# bash -c "$(curl -s https://xiaoyahelper.zengge99.eu.org/aliyun_clear.sh | tail -n +2)" -s 1 -tg
-# 模式2：已废弃，不再支持
-# 模式3：创建一个名为 xiaoyakeeper 的docker定时运行小雅转存清理并升级小雅镜像
-# bash -c "$(curl -s https://xiaoyahelper.zengge99.eu.org/aliyun_clear.sh | tail -n +2)" -s 3 -tg
-# 模式4：同模式3
-# 模式5：与模式3的区别是实时清理，只要产生了播放缓存一分钟内立即清理。签到和定时升级同模式3
-# bash -c "$(curl -s https://xiaoyahelper.zengge99.eu.org/aliyun_clear.sh | tail -n +2)" -s 5 -tg
-# 签到功能说明：
-# 1、执行时机和清理缓存完全相同
-# 2、可以手动创建/etc/xiaoya/mycheckintoken.txt，定义多个网盘签到的32位refresh token，每行一个，不添加文件就是默认小雅转存的网盘签到。
-# 3、自动刷新/etc/xiaoya/mycheckintoken.txt、/etc/xiaoya/mytoken.txt（可能可以延长refresh token时效，待观察）
-# 关于模式0/3/4/5定时运行的说明：
-# 1、默认从运行脚本的下一分钟开始，每天运行一次
-# 2、运行的时间也可以通过手动创建/etc/xiaoya/myruntime.txt修改，比如06:00,18:00就是每天早晚6点各运行一次
-# 关于自动升级:
-# 1、定时升级的命令保存在/etc/xiaoya/mycmd.txt中，删除该文件变成定时重启小雅
-# 2、完成清理和签到后自动执行/etc/xiaoya/mycmd.txt中的命令，该文件中的内容默认升级小雅镜像，可以修改该文件改编脚本的行为，不建议修改。
-# 关于tg推送：
-# 所有模式加上-tg功能均可绑定消息推送的TG账号，只有第1次运行需要加-tg参数
-#
-# ——————————————————————————————————————————————————————————————————————————————————
-#
-# The functions that the script can call are 'INFO' 'WARN' 'ERROR'
-#                 INFO function use(log output): INFO "xxxx"
-#                 WARN function use(log output): WARN "xxxx"
-#                 ERROR function use(log output): ERROR "xxxx"
-#
-# ——————————————————————————————————————————————————————————————————————————————————
-#
-DATE_VERSION="v1.6.2-2024_05_19_10_47"
+DATE_VERSION="v1.6.7-2024_06_28_20_14"
 #
 # ——————————————————————————————————————————————————————————————————————————————————
 
@@ -100,6 +45,19 @@ function ERROR() {
 function WARN() {
     echo -e "${WARN} ${1}"
 }
+
+mirrors=(
+    "docker.io"
+    "registry-docker-hub-latest-9vqc.onrender.com"
+    "docker.fxxk.dedyn.io"
+    "docker.chenby.cn"
+    "dockerproxy.com"
+    "hub.uuuadc.top"
+    "docker.jsdelivr.fyi"
+    "docker.registry.cyou"
+    "dockerhub.anzu.vip"
+    "docker.luyao.dynv6.net"
+)
 
 function root_need() {
     if [[ $EUID -ne 0 ]]; then
@@ -123,128 +81,100 @@ function ___install_docker() {
 
 }
 
+function packages_apt_install() {
+
+    if ! command -v ${1}; then
+        WARN "${1} 未安装，脚本尝试自动安装..."
+        apt update -y
+        if apt install -y ${1}; then
+            INFO "${1} 安装成功！"
+        else
+            ERROR "${1} 安装失败，请手动安装！"
+            exit 1
+        fi
+    fi
+
+}
+
+function packages_yum_install() {
+
+    if ! command -v ${1}; then
+        WARN "${1} 未安装，脚本尝试自动安装..."
+        if yum install -y ${1}; then
+            INFO "${1} 安装成功！"
+        else
+            ERROR "${1} 安装失败，请手动安装！"
+            exit 1
+        fi
+    fi
+
+}
+
+function packages_zypper_install() {
+
+    if ! command -v ${1}; then
+        WARN "${1} 未安装，脚本尝试自动安装..."
+        zypper refresh
+        if zypper install ${1}; then
+            INFO "${1} 安装成功！"
+        else
+            ERROR "${1} 安装失败，请手动安装！"
+            exit 1
+        fi
+    fi
+
+}
+
+function packages_apk_install() {
+
+    if ! command -v ${1}; then
+        WARN "${1} 未安装，脚本尝试自动安装..."
+        if apk add ${1}; then
+            INFO "${1} 安装成功！"
+        else
+            ERROR "${1} 安装失败，请手动安装！"
+            exit 1
+        fi
+    fi
+
+}
+
+function packages_pacman_install() {
+
+    if ! command -v ${1}; then
+        WARN "${1} 未安装，脚本尝试自动安装..."
+        if pacman -Sy --noconfirm ${1}; then
+            INFO "${1} 安装成功！"
+        else
+            ERROR "${1} 安装失败，请手动安装！"
+            exit 1
+        fi
+    fi
+
+}
+
 function packages_need() {
 
     if [ "$1" == "apt" ]; then
-        if ! command -v curl; then
-            WARN "curl 未安装，脚本尝试自动安装..."
-            apt update -y
-            if apt install -y curl; then
-                INFO "curl 安装成功！"
-            else
-                ERROR "curl 安装失败，请手动安装！"
-                exit 1
-            fi
-        fi
-        if ! command -v wget; then
-            WARN "wget 未安装，脚本尝试自动安装..."
-            apt update -y
-            if apt install -y wget; then
-                INFO "wget 安装成功！"
-            else
-                ERROR "wget 安装失败，请手动安装！"
-                exit 1
-            fi
-        fi
+        packages_apt_install curl
+        packages_apt_install wget
         ___install_docker
     elif [ "$1" == "yum" ]; then
-        if ! command -v curl; then
-            WARN "curl 未安装，脚本尝试自动安装..."
-            if yum install -y curl; then
-                INFO "curl 安装成功！"
-            else
-                ERROR "curl 安装失败，请手动安装！"
-                exit 1
-            fi
-        fi
-        if ! command -v wget; then
-            WARN "wget 未安装，脚本尝试自动安装..."
-            if yum install -y wget; then
-                INFO "wget 安装成功！"
-            else
-                ERROR "wget 安装失败，请手动安装！"
-                exit 1
-            fi
-        fi
+        packages_yum_install curl
+        packages_yum_install wget
         ___install_docker
     elif [ "$1" == "zypper" ]; then
-        if ! command -v curl; then
-            WARN "curl 未安装，脚本尝试自动安装..."
-            zypper refresh
-            if zypper install curl; then
-                INFO "curl 安装成功！"
-            else
-                ERROR "curl 安装失败，请手动安装！"
-                exit 1
-            fi
-        fi
-        if ! command -v wget; then
-            WARN "wget 未安装，脚本尝试自动安装..."
-            zypper refresh
-            if zypper install wget; then
-                INFO "wget 安装成功！"
-            else
-                ERROR "wget 安装失败，请手动安装！"
-                exit 1
-            fi
-        fi
+        packages_zypper_install curl
+        packages_zypper_install wget
         ___install_docker
     elif [ "$1" == "apk_alpine" ]; then
-        if ! command -v curl; then
-            WARN "curl 未安装，脚本尝试自动安装..."
-            if apk add curl; then
-                INFO "curl 安装成功！"
-            else
-                ERROR "curl 安装失败，请手动安装！"
-                exit 1
-            fi
-        fi
-        if ! command -v wget; then
-            WARN "wget 未安装，脚本尝试自动安装..."
-            if apk add wget; then
-                INFO "wget 安装成功！"
-            else
-                ERROR "wget 安装失败，请手动安装！"
-                exit 1
-            fi
-        fi
-        if ! command -v docker; then
-            WARN "docker 未安装，脚本尝试自动安装..."
-            if apk add docker; then
-                INFO "docker 安装成功！"
-            else
-                ERROR "docker 安装失败，请手动安装！"
-                exit 1
-            fi
-        fi
+        packages_apk_install curl
+        packages_apk_install wget
+        packages_apk_install docker
     elif [ "$1" == "pacman" ]; then
-        if ! command -v curl; then
-            WARN "curl 未安装，脚本尝试自动安装..."
-            if pacman -Sy --noconfirm curl; then
-                INFO "curl 安装成功！"
-            else
-                ERROR "curl 安装失败，请手动安装！"
-                exit 1
-            fi
-        fi
-        if ! command -v wget; then
-            WARN "wget 未安装，脚本尝试自动安装..."
-            if pacman -Sy --noconfirm wget; then
-                INFO "wget 安装成功！"
-            else
-                ERROR "wget 安装失败，请手动安装！"
-                exit 1
-            fi
-        fi
-        if ! command -v docker; then
-            WARN "docker 未安装，脚本尝试自动安装..."
-            if pacman -Sy --noconfirm docker; then
-                INFO "docker 安装成功！"
-            else
-                ERROR "docker 安装失败，请手动安装！"
-                exit 1
-            fi
-        fi
+        packages_pacman_install curl
+        packages_pacman_install wget
+        packages_pacman_install docker
     else
         if ! command -v curl; then
             ERROR "curl 未安装，请手动安装！"
@@ -275,6 +205,7 @@ function get_os() {
         OSNAME='macos'
         packages_need
         DDSREM_CONFIG_DIR=/etc/DDSRem
+        stty -icanon
     # 必须先判断的系统
     # 绿联NAS 基于 OpenWRT
     elif echo -e "${_os_all}" | grep -Eqi "UGREEN"; then
@@ -375,10 +306,6 @@ function get_os() {
 
 }
 
-function TODO() {
-    WARN "此功能未完成，请耐心等待开发者开发"
-}
-
 function show_disk_mount() {
 
     df -h | grep -E -v "Avail|loop|boot|overlay|tmpfs|proc" | sort -nr -k 4
@@ -388,7 +315,34 @@ function show_disk_mount() {
 function judgment_container() {
 
     if docker container inspect "${1}" > /dev/null 2>&1; then
-        echo -e "${Green}已安装${Font}"
+        local container_status
+        container_status=$(docker inspect --format='{{.State.Status}}' "${1}")
+        case "${container_status}" in
+        "created")
+            echo -e "${Blue}已创建${Font}"
+            ;;
+        "running")
+            echo -e "${Green}运行中${Font}"
+            ;;
+        "paused")
+            echo -e "${Blue}已暂停${Font}"
+            ;;
+        "restarting")
+            echo -e "${Blue}重启中${Font}"
+            ;;
+        "removing")
+            echo -e "${Blue}删除中${Font}"
+            ;;
+        "exited")
+            echo -e "${Yellow}已停止${Font}"
+            ;;
+        "dead")
+            echo -e "${Red}不可用${Font}"
+            ;;
+        *)
+            echo -e "${Red}未知状态${Font}"
+            ;;
+        esac
     else
         echo -e "${Red}未安装${Font}"
     fi
@@ -397,52 +351,129 @@ function judgment_container() {
 
 function return_menu() {
 
-    INFO "是否返回菜单继续配置 [Y/n]（默认 n 退出脚本）"
-    read -erp "RETURN_MENU:" __RETURN_MENU
-    [[ -z "${__RETURN_MENU}" ]] && __RETURN_MENU="n"
-    if [[ ${__RETURN_MENU} == [Yy] ]]; then
+    INFO "是否返回菜单继续配置 [Y/n]"
+    answer=""
+    t=60
+    while [[ -z "$answer" && $t -gt 0 ]]; do
+        printf "\r%2d 秒后将自动退出脚本：" $t
+        read -r -t 1 -n 1 answer
+        t=$((t - 1))
+    done
+    [[ -z "${answer}" ]] && answer="n"
+    if [[ ${answer} == [Yy] ]]; then
         clear
         "${@}"
     else
+        echo -e "\n"
         exit 0
+    fi
+
+}
+
+function docker_pull() {
+
+    retries=0
+    max_retries=3
+
+    IMAGE_MIRROR=$(cat "${DDSREM_CONFIG_DIR}/image_mirror.txt")
+
+    if docker inspect "${1}" > /dev/null 2>&1; then
+        INFO "发现旧 ${1} 镜像，删除中..."
+        docker rmi "${1}" > /dev/null 2>&1
+    fi
+
+    while [ $retries -lt $max_retries ]; do
+        if docker pull "${IMAGE_MIRROR}/${1}"; then
+            INFO "${1} 镜像拉取成功！"
+            break
+        else
+            WARN "${1} 镜像拉取失败，正在进行第 $((retries + 1)) 次重试..."
+            retries=$((retries + 1))
+        fi
+    done
+
+    if [ $retries -eq $max_retries ]; then
+        ERROR "镜像拉取失败，已达到最大重试次数！"
+        ERROR "请进入主菜单选择数字 ${Sky_Blue}9 6${Font} 进入 ${Sky_Blue}Docker镜像源选择${Font} 配置镜像源地址！"
+        exit 1
+    else
+        if [ "${IMAGE_MIRROR}" != "docker.io" ]; then
+            docker tag "${IMAGE_MIRROR}/${1}" "${1}" > /dev/null 2>&1
+            docker rmi "${IMAGE_MIRROR}/${1}" > /dev/null 2>&1
+        fi
+        return 0
     fi
 
 }
 
 function container_update() {
 
-    if ! docker inspect containrrr/watchtower:latest > /dev/null 2>&1; then
-        if docker pull containrrr/watchtower:latest; then
-            INFO "镜像拉取成功！"
-            REMOVE_WATCHTOWER_IMAGE=true
+    local run_image remove_image IMAGE_MIRROR pull_image
+    if docker inspect assaflavie/runlike:latest > /dev/null 2>&1; then
+        local_sha=$(docker inspect --format='{{index .RepoDigests 0}}' assaflavie/runlike:latest | cut -f2 -d:)
+        remote_sha=$(curl -s "https://hub.docker.com/v2/repositories/assaflavie/runlike/tags/latest" | grep -o '"digest":"[^"]*' | grep -o '[^"]*$' | tail -n1 | cut -f2 -d:)
+        if [ "$local_sha" != "$remote_sha" ]; then
+            docker rmi assaflavie/runlike:latest
+            docker_pull "assaflavie/runlike:latest"
+        fi
+    else
+        docker_pull "assaflavie/runlike:latest"
+    fi
+    INFO "获取 ${1} 容器信息中..."
+    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp assaflavie/runlike "${@}" > "/tmp/container_update_${*}"
+    run_image=$(docker container inspect -f '{{.Config.Image}}' "${@}")
+    remove_image=$(docker images -q ${run_image})
+    local retries=0
+    local max_retries=3
+    IMAGE_MIRROR=$(cat "${DDSREM_CONFIG_DIR}/image_mirror.txt")
+    while [ $retries -lt $max_retries ]; do
+        if docker pull "${IMAGE_MIRROR}/${run_image}"; then
+            INFO "${1} 镜像拉取成功！"
+            break
         else
-            ERROR "镜像拉取失败！"
-            exit 1
+            WARN "${1} 镜像拉取失败，正在进行第 $((retries + 1)) 次重试..."
+            retries=$((retries + 1))
+        fi
+    done
+    if [ $retries -eq $max_retries ]; then
+        ERROR "镜像拉取失败，已达到最大重试次数！"
+        return 1
+    else
+        if [ "${IMAGE_MIRROR}" != "docker.io" ]; then
+            pull_image=$(docker images -q "${IMAGE_MIRROR}/${run_image}")
+        else
+            pull_image=$(docker images -q "${run_image}")
+        fi
+        if ! docker stop "${@}" > /dev/null 2>&1; then
+            if ! docker kill "${@}" > /dev/null 2>&1; then
+                docker rmi "${IMAGE_MIRROR}/${run_image}"
+                ERROR "更新失败，停止 ${*} 容器失败！"
+                return 1
+            fi
+        fi
+        INFO "停止 ${*} 容器成功！"
+        if ! docker rm --force "${@}" > /dev/null 2>&1; then
+            ERROR "更新失败，删除 ${*} 容器失败！"
+            return 1
+        fi
+        INFO "删除 ${*} 容器成功！"
+        if [ "${pull_image}" != "${remove_image}" ]; then
+            INFO "删除 ${remove_image} 镜像中..."
+            docker rmi "${remove_image}" > /dev/null 2>&1
+        fi
+        if [ "${IMAGE_MIRROR}" != "docker.io" ]; then
+            docker tag "${IMAGE_MIRROR}/${1}" "${1}" > /dev/null 2>&1
+            docker rmi "${IMAGE_MIRROR}/${1}" > /dev/null 2>&1
+        fi
+        if bash "/tmp/container_update_${*}"; then
+            rm -f "/tmp/container_update_${*}"
+            INFO "${*} 更新成功"
+            return 0
+        else
+            ERROR "更新失败，创建 ${*} 容器失败！"
+            return 1
         fi
     fi
-
-    CURRENT_WATCHTOWER=$(docker ps --format '{{.Names}}' --filter ancestor=containrrr/watchtower | sed ':a;N;$!ba;s/\n/ /g')
-
-    if [ -n "${CURRENT_WATCHTOWER}" ]; then
-        docker stop "${CURRENT_WATCHTOWER}"
-    fi
-
-    docker run --rm \
-        -v /var/run/docker.sock:/var/run/docker.sock \
-        containrrr/watchtower:latest \
-        --run-once \
-        --cleanup \
-        "${@}"
-
-    if [ "${REMOVE_WATCHTOWER_IMAGE}" == "true" ]; then
-        docker rmi containrrr/watchtower:latest
-    fi
-
-    if [ -n "${CURRENT_WATCHTOWER}" ]; then
-        docker start "${CURRENT_WATCHTOWER}"
-    fi
-
-    INFO "${*} 更新成功"
 
 }
 
@@ -511,6 +542,38 @@ function wait_xiaoya_start() {
 
 }
 
+function check_quark_cookie() {
+
+    if [[ ! -f "${CONFIG_DIR}/quark_cookie.txt" ]] && [[ ! -s "${CONFIG_DIR}/quark_cookie.txt" ]]; then
+        return 1
+    fi
+    local cookie user_agent url headers response status state_url sign_daily_reward sign_daily_reward_mb
+    cookie=$(head -n1 "${CONFIG_DIR}/quark_cookie.txt")
+    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) quark-cloud-drive/2.5.20 Chrome/100.0.4896.160 Electron/18.3.5.4-b478491100 Safari/537.36 Channel/pckk_other_ch"
+    url="https://drive-pc.quark.cn/1/clouddrive/config?pr=ucpro&fr=pc&uc_param_str="
+    headers="Cookie: $cookie; User-Agent: $user_agent; Referer: https://pan.quark.cn"
+    response=$(curl -s -D - -H "$headers" "$url")
+    status=$(echo "$response" | grep -i status | cut -f2 -d: | cut -f1 -d,)
+    if [ "$status" == "401" ]; then
+        ERROR "无效夸克 Cookie"
+        return 1
+    else
+        state_url="https://drive-m.quark.cn/1/clouddrive/capacity/growth/info?pr=ucpro&fr=pc&uc_param_str="
+        response=$(curl -s -H "$headers" "$state_url")
+        sign_daily_reward=$(echo "$response" | cut -f6 -d\{ | cut -f4 -d: | cut -f1 -d,)
+        sign_daily_reward_mb=$(echo "$sign_daily_reward 1024 1024" | awk '{printf "%.2f\n", $1 / ($2 * $3)}')
+        if [ $sign_daily_reward_mb ]; then
+            INFO "有效夸克 Cookie"
+            INFO "夸克签到获取 $sign_daily_reward_mb MB"
+            return 0
+        else
+            ERROR "请求失败，请检查 Cookie 或网络连接是否正确。"
+            return 1
+        fi
+    fi
+
+}
+
 function get_config_dir() {
 
     if [ -f ${DDSREM_CONFIG_DIR}/xiaoya_alist_config_dir.txt ]; then
@@ -527,6 +590,7 @@ function get_config_dir() {
         echo "${CONFIG_DIR}" > ${DDSREM_CONFIG_DIR}/xiaoya_alist_config_dir.txt
     fi
     if [ -d "${CONFIG_DIR}" ]; then
+        INFO "读取配置目录中..."
         # 将所有小雅配置文件修正成 linux 格式
         find ${CONFIG_DIR} -type f -name "*.txt" -exec sed -i "s/\r$//g" {} \;
         # 设置权限
@@ -596,15 +660,12 @@ function install_xiaoya_alist() {
         mkdir -p "${CONFIG_DIR}/data"
     fi
 
-    if [ ! -f "${CONFIG_DIR}/mytoken.txt" ]; then
-        touch ${CONFIG_DIR}/mytoken.txt
-    fi
-    if [ ! -f "${CONFIG_DIR}/myopentoken.txt" ]; then
-        touch ${CONFIG_DIR}/myopentoken.txt
-    fi
-    if [ ! -f "${CONFIG_DIR}/temp_transfer_folder_id.txt" ]; then
-        touch ${CONFIG_DIR}/temp_transfer_folder_id.txt
-    fi
+    files=("mytoken.txt" "myopentoken.txt" "temp_transfer_folder_id.txt")
+    for file in "${files[@]}"; do
+        if [ ! -f "${CONFIG_DIR}/${file}" ]; then
+            touch "${CONFIG_DIR}/${file}"
+        fi
+    done
 
     mytokenfilesize=$(cat "${CONFIG_DIR}"/mytoken.txt)
     mytokenstringsize=${#mytokenfilesize}
@@ -666,6 +727,23 @@ function install_xiaoya_alist() {
         fi
     fi
 
+    if [ ! -f "${CONFIG_DIR}/quark_cookie.txt" ] || ! check_quark_cookie; then
+        INFO "是否配置 夸克 Cookie [Y/n]（默认 n 不配置）"
+        read -erp "Cookie:" choose_cookie
+        [[ -z "${choose_cookie}" ]] && choose_cookie="n"
+        if [[ ${choose_cookie} == [Yy] ]]; then
+            touch ${CONFIG_DIR}/quark_cookie.txt
+            while true; do
+                INFO "输入你的 夸克 Cookie"
+                read -erp "Cookie:" quark_cookie
+                echo -e "${quark_cookie}" > ${CONFIG_DIR}/quark_cookie.txt
+                if check_quark_cookie; then
+                    break
+                fi
+            done
+        fi
+    fi
+
     if command -v ifconfig > /dev/null 2>&1; then
         localip=$(ifconfig -a | grep inet | grep -v 172.17 | grep -v 127.0.0.1 | grep -v inet6 | awk '{print $2}' | sed 's/addr://' | head -n1)
     else
@@ -678,74 +756,24 @@ function install_xiaoya_alist() {
         read -erp "NET_MODE:" NET_MODE
     fi
     [[ -z "${NET_MODE}" ]] && NET_MODE="n"
+    if [ ! -s "${CONFIG_DIR}"/docker_address.txt ]; then
+        echo "http://$localip:5678" > "${CONFIG_DIR}"/docker_address.txt
+    fi
+    docker_command=("docker run" "-itd")
     if [[ ${NET_MODE} == [Yy] ]]; then
-        if [ ! -s "${CONFIG_DIR}"/docker_address.txt ]; then
-            echo "http://$localip:5678" > "${CONFIG_DIR}"/docker_address.txt
-        fi
-        if docker pull xiaoyaliu/alist:hostmode; then
-            INFO "镜像拉取成功！"
-        else
-            ERROR "镜像拉取失败！"
-            exit 1
-        fi
-        if [[ -f ${CONFIG_DIR}/proxy.txt ]] && [[ -s ${CONFIG_DIR}/proxy.txt ]]; then
-            proxy_url=$(head -n1 "${CONFIG_DIR}"/proxy.txt)
-            docker run -itd \
-                --env HTTP_PROXY="$proxy_url" \
-                --env HTTPS_PROXY="$proxy_url" \
-                --env no_proxy="*.aliyundrive.com" \
-                --network=host \
-                -v "${CONFIG_DIR}:/data" \
-                -v "${CONFIG_DIR}/data:/www/data" \
-                --restart=always \
-                --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_alist_name.txt)" \
-                xiaoyaliu/alist:hostmode
-        else
-            docker run -itd \
-                --network=host \
-                -v "${CONFIG_DIR}:/data" \
-                -v "${CONFIG_DIR}/data:/www/data" \
-                --restart=always \
-                --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_alist_name.txt)" \
-                xiaoyaliu/alist:hostmode
-        fi
+        docker_image="xiaoyaliu/alist:hostmode"
+        docker_command+=("--network=host")
+    else
+        docker_image="xiaoyaliu/alist:latest"
+        docker_command+=("-p 5678:80" "-p 2345:2345" "-p 2346:2346")
     fi
-    if [[ ${NET_MODE} == [Nn] ]]; then
-        if [ ! -s "${CONFIG_DIR}"/docker_address.txt ]; then
-            echo "http://$localip:5678" > "${CONFIG_DIR}"/docker_address.txt
-        fi
-        if docker pull xiaoyaliu/alist:latest; then
-            INFO "镜像拉取成功！"
-        else
-            ERROR "镜像拉取失败！"
-            exit 1
-        fi
-        if [[ -f ${CONFIG_DIR}/proxy.txt ]] && [[ -s ${CONFIG_DIR}/proxy.txt ]]; then
-            proxy_url=$(head -n1 "${CONFIG_DIR}"/proxy.txt)
-            docker run -itd \
-                -p 5678:80 \
-                -p 2345:2345 \
-                -p 2346:2346 \
-                --env HTTP_PROXY="$proxy_url" \
-                --env HTTPS_PROXY="$proxy_url" \
-                --env no_proxy="*.aliyundrive.com" \
-                -v "${CONFIG_DIR}:/data" \
-                -v "${CONFIG_DIR}/data:/www/data" \
-                --restart=always \
-                --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_alist_name.txt)" \
-                xiaoyaliu/alist:latest
-        else
-            docker run -itd \
-                -p 5678:80 \
-                -p 2345:2345 \
-                -p 2346:2346 \
-                -v "${CONFIG_DIR}:/data" \
-                -v "${CONFIG_DIR}/data:/www/data" \
-                --restart=always \
-                --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_alist_name.txt)" \
-                xiaoyaliu/alist:latest
-        fi
+    if [[ -f ${CONFIG_DIR}/proxy.txt ]] && [[ -s ${CONFIG_DIR}/proxy.txt ]]; then
+        proxy_url=$(head -n1 "${CONFIG_DIR}"/proxy.txt)
+        docker_command+=("--env HTTP_PROXY=$proxy_url" "--env HTTPS_PROXY=$proxy_url" "--env no_proxy=*.aliyundrive.com")
     fi
+    docker_command+=("-v ${CONFIG_DIR}:/data" "-v ${CONFIG_DIR}/data:/www/data" "--restart=always" "--name=$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_alist_name.txt)" "$docker_image")
+    docker_pull "$docker_image"
+    eval "${docker_command[*]}"
 
     wait_xiaoya_start
 
@@ -823,108 +851,6 @@ function judgment_xiaoya_alist_sync_data_status() {
 
 }
 
-function install_xiaoya_alist_sync_data() {
-
-    if [ ! -f ${DDSREM_CONFIG_DIR}/xiaoya_alist_config_dir.txt ]; then
-        get_config_dir
-    else
-        CONFIG_DIR="$(cat ${DDSREM_CONFIG_DIR}/xiaoya_alist_config_dir.txt)"
-    fi
-
-    while true; do
-        INFO "请输入您希望的同步间隔"
-        read -erp "请输入以小时为单位的同步间隔时间（默认：5）：" sync_interval
-        [[ -z "${sync_interval}" ]] && sync_interval="5"
-        if [[ "$sync_interval" -gt 0 && "$sync_interval" -le 23 ]]; then
-            break
-        else
-            ERROR "输入错误，请重新输入。同步间隔时间必须为1到23之间的正整数。"
-        fi
-    done
-
-    bash -c "$(curl --insecure -fsSL https://ddsrem.com/xiaoya/xiaoya_data_downloader.sh)" -s "${CONFIG_DIR}"
-
-    # 组合定时任务命令
-    CRON="0 */${sync_interval} * * *   bash -c \"\$(curl --insecure -fsSL https://ddsrem.com/xiaoya/xiaoya_data_downloader.sh)\" -s \
-${CONFIG_DIR} >> \
-${CONFIG_DIR}/data/cron.log 2>&1"
-    if command -v crontab > /dev/null 2>&1; then
-        crontab -l | grep -v xiaoya_data_downloader > /tmp/cronjob.tmp
-        echo -e "${CRON}" >> /tmp/cronjob.tmp
-        crontab /tmp/cronjob.tmp
-        INFO '已经添加下面的记录到crontab定时任务'
-        INFO "${CRON}"
-        rm -rf /tmp/cronjob.tmp
-    elif [ -f /etc/synoinfo.conf ]; then
-        # 群晖单独支持
-        cp /etc/crontab /etc/crontab.bak
-        INFO "已创建/etc/crontab.bak备份文件"
-        sed -i '/xiaoya_data_downloader/d' /etc/crontab
-        echo -e "${CRON}" >> /etc/crontab
-        INFO '已经添加下面的记录到crontab定时任务'
-        INFO "${CRON}"
-    fi
-
-    local net_mode
-    net_mode="$(docker inspect --format='{{range $m, $conf := .NetworkSettings.Networks}}{{$m}}{{end}}' "$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_alist_name.txt)")"
-    if [ "$net_mode"x = "bridge"x ]; then
-        echo "http://127.0.0.1:81/data" > "${CONFIG_DIR}"/download_url.txt
-    elif [ "$net_mode"x = "host"x ]; then
-        echo "http://127.0.0.1:5233/data" > "${CONFIG_DIR}"/download_url.txt
-    else
-        WARN "程序自动编辑download_url.txt失败，请自行编辑 ${CONFIG_DIR}/download_url.txt 文件！"
-    fi
-
-    if docker inspect xiaoyaliu/alist:latest > /dev/null 2>&1; then
-        if docker inspect xiaoyaliu/alist:latest > /dev/null 2>&1; then
-            local_sha=$(docker inspect --format='{{index .RepoDigests 0}}' xiaoyaliu/alist:latest | cut -f2 -d:)
-            remote_sha=$(curl -s "https://hub.docker.com/v2/repositories/xiaoyaliu/alist/tags/latest" | grep -o '"digest":"[^"]*' | grep -o '[^"]*$' | tail -n1 | cut -f2 -d:)
-            INFO "remote_sha: ${remote_sha}"
-            INFO "local_sha: ${local_sha}"
-            if [ ! "${local_sha}" == "${remote_sha}" ] && [ -n "${remote_sha}" ] && [ -n "${local_sha}" ]; then
-                INFO "程序将更新小雅容器！"
-                IMAGE_NAME="$(docker inspect --format='{{.Config.Image}}' "$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_alist_name.txt)")"
-                docker stop "$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_alist_name.txt)"
-                docker rm "$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_alist_name.txt)"
-                docker rmi "${IMAGE_NAME}"
-                SET_NET_MODE=false
-                NET_MODE=n
-                install_xiaoya_alist
-            else
-                INFO "跳过小雅容器更新"
-                INFO "重启小雅容器使配置生效！"
-                docker restart "$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_alist_name.txt)"
-                wait_xiaoya_start
-            fi
-        fi
-    elif docker inspect xiaoyaliu/alist:hostmode > /dev/null 2>&1; then
-        if docker inspect xiaoyaliu/alist:hostmode > /dev/null 2>&1; then
-            local_sha=$(docker inspect --format='{{index .RepoDigests 0}}' xiaoyaliu/alist:hostmode | cut -f2 -d:)
-            remote_sha=$(curl -s "https://hub.docker.com/v2/repositories/xiaoyaliu/alist/tags/hostmode" | grep -o '"digest":"[^"]*' | grep -o '[^"]*$' | tail -n1 | cut -f2 -d:)
-            INFO "remote_sha: ${remote_sha}"
-            INFO "local_sha: ${local_sha}"
-            if [ ! "${local_sha}" == "${remote_sha}" ] && [ -n "${remote_sha}" ] && [ -n "${local_sha}" ]; then
-                INFO "程序将更新小雅容器！"
-                IMAGE_NAME="$(docker inspect --format='{{.Config.Image}}' "$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_alist_name.txt)")"
-                docker stop "$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_alist_name.txt)"
-                docker rm "$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_alist_name.txt)"
-                docker rmi "${IMAGE_NAME}"
-                SET_NET_MODE=false
-                NET_MODE=y
-                install_xiaoya_alist
-            else
-                INFO "跳过小雅容器更新"
-                INFO "重启小雅容器使配置生效！"
-                docker restart "$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_alist_name.txt)"
-                wait_xiaoya_start
-            fi
-        fi
-    fi
-
-    INFO "设置完成！"
-
-}
-
 function uninstall_xiaoya_alist_sync_data() {
 
     if command -v crontab > /dev/null 2>&1; then
@@ -945,7 +871,7 @@ function main_xiaoya_alist() {
     echo -e "1、安装"
     echo -e "2、更新"
     echo -e "3、卸载"
-    echo -e "4、创建/删除 定时同步更新数据                  当前状态：$(judgment_xiaoya_alist_sync_data_status)"
+    echo -e "4、创建/删除 定时同步更新数据（${Red}功能已弃用，只提供删除${Font}）  当前状态：$(judgment_xiaoya_alist_sync_data_status)"
     echo -e "0、返回上级"
     echo -e "——————————————————————————————————————————————————————————————————————————————————"
     read -erp "请输入数字 [0-4]:" num
@@ -979,7 +905,7 @@ function main_xiaoya_alist() {
                 clear
                 INFO "已删除"
             else
-                install_xiaoya_alist_sync_data
+                INFO "功能已弃用，目前只提供删除！"
             fi
         elif [ -f /etc/synoinfo.conf ]; then
             if grep 'xiaoya_data_downloader' /etc/crontab > /dev/null 2>&1; then
@@ -991,12 +917,10 @@ function main_xiaoya_alist() {
                 clear
                 INFO "已删除"
             else
-                install_xiaoya_alist_sync_data
+                INFO "功能已弃用，目前只提供删除！"
             fi
         else
-            WARN "目前你的系统不支持脚本自动设置定时任务，请手动将以下命令添加到定时任务，并修改 xiaoya配置文件目录 ！"
-            WARN "bash -c \"\$(curl --insecure -fsSL https://ddsrem.com/xiaoya/xiaoya_data_downloader.sh)\" -s xiaoya配置文件目录"
-            exit 0
+            INFO "功能已弃用，目前只提供删除！"
         fi
         return_menu "main_xiaoya_alist"
         ;;
@@ -1097,22 +1021,12 @@ function pull_run_glue() {
     if docker inspect xiaoyaliu/glue:latest > /dev/null 2>&1; then
         local_sha=$(docker inspect --format='{{index .RepoDigests 0}}' xiaoyaliu/glue:latest | cut -f2 -d:)
         remote_sha=$(curl -s "https://hub.docker.com/v2/repositories/xiaoyaliu/glue/tags/latest" | grep -o '"digest":"[^"]*' | grep -o '[^"]*$' | tail -n1 | cut -f2 -d:)
-        if [ ! "$local_sha" == "$remote_sha" ]; then
+        if [ "$local_sha" != "$remote_sha" ]; then
             docker rmi xiaoyaliu/glue:latest
-            if docker pull xiaoyaliu/glue:latest; then
-                INFO "镜像拉取成功！"
-            else
-                ERROR "镜像拉取失败！"
-                exit 1
-            fi
+            docker_pull "xiaoyaliu/glue:latest"
         fi
     else
-        if docker pull xiaoyaliu/glue:latest; then
-            INFO "镜像拉取成功！"
-        else
-            ERROR "镜像拉取失败！"
-            exit 1
-        fi
+        docker_pull "xiaoyaliu/glue:latest"
     fi
 
     if [ -n "${extra_parameters}" ]; then
@@ -1124,6 +1038,7 @@ function pull_run_glue() {
             -v "${CONFIG_DIR}:/etc/xiaoya" \
             ${extra_parameters} \
             -e LANG=C.UTF-8 \
+            -e TZ=Asia/Shanghai \
             xiaoyaliu/glue:latest \
             "${@}"
     else
@@ -1134,49 +1049,8 @@ function pull_run_glue() {
             -v "${MEDIA_DIR}:/media" \
             -v "${CONFIG_DIR}:/etc/xiaoya" \
             -e LANG=C.UTF-8 \
+            -e TZ=Asia/Shanghai \
             xiaoyaliu/glue:latest \
-            "${@}"
-    fi
-
-}
-
-function pull_run_ddsderek_glue() {
-
-    if docker inspect ddsderek/xiaoya-glue:latest > /dev/null 2>&1; then
-        local_sha=$(docker inspect --format='{{index .RepoDigests 0}}' ddsderek/xiaoya-glue:latest | cut -f2 -d:)
-        remote_sha=$(curl -s "https://hub.docker.com/v2/repositories/ddsderek/xiaoya-glue/tags/latest" | grep -o '"digest":"[^"]*' | grep -o '[^"]*$' | tail -n1 | cut -f2 -d:)
-        if [ ! "$local_sha" == "$remote_sha" ]; then
-            docker rmi ddsderek/xiaoya-glue:latest
-        fi
-    fi
-
-    if docker pull ddsderek/xiaoya-glue:latest; then
-        INFO "镜像拉取成功！"
-    else
-        ERROR "镜像拉取失败！"
-        exit 1
-    fi
-
-    if [ -n "${extra_parameters}" ]; then
-        docker run -it \
-            --security-opt seccomp=unconfined \
-            --rm \
-            --net=host \
-            -v "${MEDIA_DIR}:/media" \
-            -v "${CONFIG_DIR}:/etc/xiaoya" \
-            ${extra_parameters} \
-            -e LANG=C.UTF-8 \
-            ddsderek/xiaoya-glue:latest \
-            "${@}"
-    else
-        docker run -it \
-            --security-opt seccomp=unconfined \
-            --rm \
-            --net=host \
-            -v "${MEDIA_DIR}:/media" \
-            -v "${CONFIG_DIR}:/etc/xiaoya" \
-            -e LANG=C.UTF-8 \
-            ddsderek/xiaoya-glue:latest \
             "${@}"
     fi
 
@@ -1308,13 +1182,19 @@ function unzip_xiaoya_emby() {
 
 }
 
-function unzip_appoint_xiaoya_emby() {
+function unzip_appoint_xiaoya_emby_jellyfin() {
+
+    if [ "${2}" == "emby" ]; then
+        file_name="all.mp4"
+    elif [ "${2}" == "jellyfin" ]; then
+        file_name="all_jf.mp4"
+    fi
 
     get_config_dir
 
     get_media_dir
 
-    if [ "${1}" == "all.mp4" ]; then
+    if [ "${1}" == "${file_name}" ]; then
         INFO "请选择要解压的压缩包目录 [ 1:动漫 | 2:每日更新 | 3:电影 | 4:电视剧 | 5:纪录片 | 6:纪录片（已刮削）| 7:综艺 ]"
         valid_choice=false
         while [ "$valid_choice" = false ]; do
@@ -1373,18 +1253,18 @@ function unzip_appoint_xiaoya_emby() {
 
     start_time1=$(date +%s)
 
-    if [ "${1}" == "all.mp4" ]; then
+    if [ "${1}" == "${file_name}" ]; then
         extra_parameters="--workdir=/media/xiaoya"
 
         mkdir -p "${MEDIA_DIR}"/xiaoya
 
-        all_size=$(du -k ${MEDIA_DIR}/temp/all.mp4 | cut -f1)
+        all_size=$(du -k ${MEDIA_DIR}/temp/${file_name} | cut -f1)
         if [[ "$all_size" -le 30000000 ]]; then
-            ERROR "all.mp4 下载不完整，文件大小(in KB):$all_size 小于预期"
+            ERROR "${file_name} 下载不完整，文件大小(in KB):$all_size 小于预期"
             exit 1
         else
-            INFO "all.mp4 文件大小验证正常"
-            pull_run_glue 7z x -aoa -mmt=16 /media/temp/all.mp4 ${UNZIP_FOLD}/* -o/media/xiaoya
+            INFO "${file_name} 文件大小验证正常"
+            pull_run_glue 7z x -aoa -mmt=16 /media/temp/${file_name} ${UNZIP_FOLD}/* -o/media/xiaoya
         fi
 
         INFO "设置目录权限..."
@@ -1680,7 +1560,7 @@ function main_download_unzip_xiaoya_emby() {
         ;;
     5)
         clear
-        unzip_appoint_xiaoya_emby "all.mp4"
+        unzip_appoint_xiaoya_emby "all.mp4" "emby"
         return_menu "main_download_unzip_xiaoya_emby"
         ;;
     6)
@@ -2161,100 +2041,6 @@ function unzip_xiaoya_jellyfin() {
 
 }
 
-function unzip_appoint_xiaoya_jellyfin() {
-
-    get_config_dir
-
-    get_media_dir
-
-    if [ "${1}" == "all_jf.mp4" ]; then
-        INFO "请选择要解压的压缩包目录 [ 1:动漫 | 2:每日更新 | 3:电影 | 4:电视剧 | 5:纪录片 | 6:纪录片（已刮削）| 7:综艺 ]"
-        valid_choice=false
-        while [ "$valid_choice" = false ]; do
-            read -erp "请输入数字 [1-7]:" choice
-            for i in {1..7}; do
-                if [ "$choice" = "$i" ]; then
-                    valid_choice=true
-                    break
-                fi
-            done
-            if [ "$valid_choice" = false ]; then
-                ERROR "请输入正确数字 [1-7]"
-            fi
-        done
-        case $choice in
-        1)
-            UNZIP_FOLD=动漫
-            ;;
-        2)
-            UNZIP_FOLD=每日更新
-            ;;
-        3)
-            UNZIP_FOLD=电影
-            ;;
-        4)
-            UNZIP_FOLD=电视剧
-            ;;
-        5)
-            UNZIP_FOLD=纪录片
-            ;;
-        6)
-            UNZIP_FOLD=纪录片（已刮削）
-            ;;
-        7)
-            UNZIP_FOLD=综艺
-            ;;
-        esac
-    else
-        ERROR "此文件暂时不支持解压指定元数据！"
-    fi
-
-    free_size=$(df -P "${MEDIA_DIR}" | tail -n1 | awk '{print $4}')
-    free_size=$((free_size))
-    free_size_G=$((free_size / 1024 / 1024))
-    INFO "磁盘容量：${free_size_G}G"
-
-    chmod 777 "${MEDIA_DIR}"
-    chown root:root "${MEDIA_DIR}"
-
-    INFO "开始解压 ${MEDIA_DIR}/temp/${1} ${UNZIP_FOLD} ..."
-
-    if [ -f "${MEDIA_DIR}/temp/${1}.aria2" ]; then
-        ERROR "存在 ${MEDIA_DIR}/temp/${1}.aria2 文件，文件不完整！"
-        exit 1
-    fi
-
-    start_time1=$(date +%s)
-
-    if [ "${1}" == "all_jf.mp4" ]; then
-        extra_parameters="--workdir=/media/xiaoya"
-
-        mkdir -p "${MEDIA_DIR}"/xiaoya
-
-        all_size=$(du -k ${MEDIA_DIR}/temp/all_jf.mp4 | cut -f1)
-        if [[ "$all_size" -le 30000000 ]]; then
-            ERROR "all_jf.mp4 下载不完整，文件大小(in KB):$all_size 小于预期"
-            exit 1
-        else
-            INFO "all_jf.mp4 文件大小验证正常"
-            pull_run_glue 7z x -aoa -mmt=16 /media/temp/all_jf.mp4 ${UNZIP_FOLD}/* -o/media/xiaoya
-        fi
-
-        INFO "设置目录权限..."
-        chmod 777 "${MEDIA_DIR}"/xiaoya
-    else
-        ERROR "此文件暂时不支持解压指定元数据！"
-    fi
-
-    end_time1=$(date +%s)
-    total_time1=$((end_time1 - start_time1))
-    total_time1=$((total_time1 / 60))
-    INFO "解压执行时间：$total_time1 分钟"
-
-    INFO "解压完成！"
-
-}
-
 function main_download_unzip_xiaoya_jellyfin() {
 
     __data_downloader=$(cat ${DDSREM_CONFIG_DIR}/data_downloader.txt)
@@ -2305,7 +2091,7 @@ function main_download_unzip_xiaoya_jellyfin() {
         ;;
     5)
         clear
-        unzip_appoint_xiaoya_jellyfin "all_jf.mp4"
+        unzip_appoint_xiaoya_emby_jellyfin "all_jf.mp4" "jellyfin"
         return_menu "main_download_unzip_xiaoya_jellyfin"
         ;;
     6)
@@ -2366,82 +2152,47 @@ function install_emby_embyserver() {
     INFO "开始安装Emby容器....."
     case $cpu_arch in
     "x86_64" | *"amd64"*)
-        if docker pull emby/embyserver:${IMAGE_VERSION}; then
-            INFO "镜像拉取成功！"
-        else
-            ERROR "镜像拉取失败！"
-            exit 1
-        fi
-        if [ -n "${extra_parameters}" ]; then
-            docker run -itd \
-                --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_emby_name.txt)" \
-                -v "${MEDIA_DIR}/config:/config" \
-                -v "${MEDIA_DIR}/xiaoya:/media" \
-                -v ${NSSWITCH}:/etc/nsswitch.conf \
-                --add-host="xiaoya.host:$xiaoya_host" \
-                ${NET_MODE} \
-                --privileged=true \
-                ${extra_parameters} \
-                -e UID=0 \
-                -e GID=0 \
-                --restart=always \
-                emby/embyserver:${IMAGE_VERSION}
-        else
-            docker run -itd \
-                --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_emby_name.txt)" \
-                -v "${MEDIA_DIR}/config:/config" \
-                -v "${MEDIA_DIR}/xiaoya:/media" \
-                -v ${NSSWITCH}:/etc/nsswitch.conf \
-                --add-host="xiaoya.host:$xiaoya_host" \
-                ${NET_MODE} \
-                --privileged=true \
-                -e UID=0 \
-                -e GID=0 \
-                --restart=always \
-                emby/embyserver:${IMAGE_VERSION}
-        fi
+        image_name="emby/embyserver"
         ;;
     "aarch64" | *"arm64"* | *"armv8"* | *"arm/v8"*)
-        if docker pull emby/embyserver_arm64v8:${IMAGE_VERSION}; then
-            INFO "镜像拉取成功！"
-        else
-            ERROR "镜像拉取失败！"
-            exit 1
-        fi
-        if [ -n "${extra_parameters}" ]; then
-            docker run -itd \
-                --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_emby_name.txt)" \
-                -v "${MEDIA_DIR}/config:/config" \
-                -v "${MEDIA_DIR}/xiaoya:/media" \
-                -v ${NSSWITCH}:/etc/nsswitch.conf \
-                --add-host="xiaoya.host:$xiaoya_host" \
-                ${NET_MODE} \
-                --privileged=true \
-                ${extra_parameters} \
-                -e UID=0 \
-                -e GID=0 \
-                --restart=always \
-                emby/embyserver_arm64v8:${IMAGE_VERSION}
-        else
-            docker run -itd \
-                --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_emby_name.txt)" \
-                -v "${MEDIA_DIR}/config:/config" \
-                -v "${MEDIA_DIR}/xiaoya:/media" \
-                -v ${NSSWITCH}:/etc/nsswitch.conf \
-                --add-host="xiaoya.host:$xiaoya_host" \
-                ${NET_MODE} \
-                --privileged=true \
-                -e UID=0 \
-                -e GID=0 \
-                --restart=always \
-                emby/embyserver_arm64v8:${IMAGE_VERSION}
-        fi
+        image_name="emby/embyserver_arm64v8"
         ;;
     *)
         ERROR "目前只支持amd64和arm64架构，你的架构是：$cpu_arch"
         exit 1
         ;;
     esac
+    docker_pull "${image_name}:${IMAGE_VERSION}"
+    if [ -n "${extra_parameters}" ]; then
+        docker run -itd \
+            --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_emby_name.txt)" \
+            -v "${MEDIA_DIR}/config:/config" \
+            -v "${MEDIA_DIR}/xiaoya:/media" \
+            -v ${NSSWITCH}:/etc/nsswitch.conf \
+            --add-host="xiaoya.host:$xiaoya_host" \
+            ${NET_MODE} \
+            --privileged=true \
+            ${extra_parameters} \
+            -e UID=0 \
+            -e GID=0 \
+            -e TZ=Asia/Shanghai \
+            --restart=always \
+            "${image_name}:${IMAGE_VERSION}"
+    else
+        docker run -itd \
+            --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_emby_name.txt)" \
+            -v "${MEDIA_DIR}/config:/config" \
+            -v "${MEDIA_DIR}/xiaoya:/media" \
+            -v ${NSSWITCH}:/etc/nsswitch.conf \
+            --add-host="xiaoya.host:$xiaoya_host" \
+            ${NET_MODE} \
+            --privileged=true \
+            -e UID=0 \
+            -e GID=0 \
+            -e TZ=Asia/Shanghai \
+            --restart=always \
+            "${image_name}:${IMAGE_VERSION}"
+    fi
 
 }
 
@@ -2451,78 +2202,45 @@ function install_amilys_embyserver() {
     INFO "开始安装Emby容器....."
     case $cpu_arch in
     "x86_64" | *"amd64"*)
-        if docker pull amilys/embyserver:${IMAGE_VERSION}; then
-            INFO "镜像拉取成功！"
-        else
-            ERROR "镜像拉取失败！"
-            exit 1
-        fi
-        if [ -n "${extra_parameters}" ]; then
-            docker run -itd \
-                --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_emby_name.txt)" \
-                -v "${MEDIA_DIR}/config:/config" \
-                -v "${MEDIA_DIR}/xiaoya:/media" \
-                -v ${NSSWITCH}:/etc/nsswitch.conf \
-                --add-host="xiaoya.host:$xiaoya_host" \
-                ${NET_MODE} \
-                ${extra_parameters} \
-                -e UID=0 \
-                -e GID=0 \
-                --restart=always \
-                amilys/embyserver:${IMAGE_VERSION}
-        else
-            docker run -itd \
-                --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_emby_name.txt)" \
-                -v "${MEDIA_DIR}/config:/config" \
-                -v "${MEDIA_DIR}/xiaoya:/media" \
-                -v ${NSSWITCH}:/etc/nsswitch.conf \
-                --add-host="xiaoya.host:$xiaoya_host" \
-                ${NET_MODE} \
-                -e UID=0 \
-                -e GID=0 \
-                --restart=always \
-                amilys/embyserver:${IMAGE_VERSION}
-        fi
+        image_name="amilys/embyserver"
         ;;
     "aarch64" | *"arm64"* | *"armv8"* | *"arm/v8"*)
-        if docker pull amilys/embyserver_arm64v8:${IMAGE_VERSION}; then
-            INFO "镜像拉取成功！"
-        else
-            ERROR "镜像拉取失败！"
-            exit 1
-        fi
-        if [ -n "${extra_parameters}" ]; then
-            docker run -itd \
-                --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_emby_name.txt)" \
-                -v "${MEDIA_DIR}/config:/config" \
-                -v "${MEDIA_DIR}/xiaoya:/media" \
-                -v ${NSSWITCH}:/etc/nsswitch.conf \
-                --add-host="xiaoya.host:$xiaoya_host" \
-                ${NET_MODE} \
-                ${extra_parameters} \
-                -e UID=0 \
-                -e GID=0 \
-                --restart=always \
-                amilys/embyserver_arm64v8:${IMAGE_VERSION}
-        else
-            docker run -itd \
-                --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_emby_name.txt)" \
-                -v "${MEDIA_DIR}/config:/config" \
-                -v "${MEDIA_DIR}/xiaoya:/media" \
-                -v ${NSSWITCH}:/etc/nsswitch.conf \
-                --add-host="xiaoya.host:$xiaoya_host" \
-                ${NET_MODE} \
-                -e UID=0 \
-                -e GID=0 \
-                --restart=always \
-                amilys/embyserver_arm64v8:${IMAGE_VERSION}
-        fi
+        image_name="amilys/embyserver_arm64v8"
         ;;
     *)
         ERROR "目前只支持amd64和arm64架构，你的架构是：$cpu_arch"
         exit 1
         ;;
     esac
+    docker_pull "${image_name}:${IMAGE_VERSION}"
+    if [ -n "${extra_parameters}" ]; then
+        docker run -itd \
+            --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_emby_name.txt)" \
+            -v "${MEDIA_DIR}/config:/config" \
+            -v "${MEDIA_DIR}/xiaoya:/media" \
+            -v ${NSSWITCH}:/etc/nsswitch.conf \
+            --add-host="xiaoya.host:$xiaoya_host" \
+            ${NET_MODE} \
+            ${extra_parameters} \
+            -e UID=0 \
+            -e GID=0 \
+            -e TZ=Asia/Shanghai \
+            --restart=always \
+            "${image_name}:${IMAGE_VERSION}"
+    else
+        docker run -itd \
+            --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_emby_name.txt)" \
+            -v "${MEDIA_DIR}/config:/config" \
+            -v "${MEDIA_DIR}/xiaoya:/media" \
+            -v ${NSSWITCH}:/etc/nsswitch.conf \
+            --add-host="xiaoya.host:$xiaoya_host" \
+            ${NET_MODE} \
+            -e UID=0 \
+            -e GID=0 \
+            -e TZ=Asia/Shanghai \
+            --restart=always \
+            "${image_name}:${IMAGE_VERSION}"
+    fi
 
 }
 
@@ -2547,12 +2265,7 @@ function install_lovechen_embyserver() {
     INFO "数据库转换成功！"
     rm -rf ${MEDIA_DIR}/temp.sql
 
-    if docker pull lovechen/embyserver:4.7.14.0; then
-        INFO "镜像拉取成功！"
-    else
-        ERROR "镜像拉取失败！"
-        exit 1
-    fi
+    docker_pull "lovechen/embyserver:4.7.14.0"
     if [ -n "${extra_parameters}" ]; then
         docker run -itd \
             --name "$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_emby_name.txt)" \
@@ -2564,6 +2277,7 @@ function install_lovechen_embyserver() {
             ${extra_parameters} \
             -e UID=0 \
             -e GID=0 \
+            -e TZ=Asia/Shanghai \
             --restart=always \
             lovechen/embyserver:4.7.14.0
     else
@@ -2576,6 +2290,7 @@ function install_lovechen_embyserver() {
             ${NET_MODE} \
             -e UID=0 \
             -e GID=0 \
+            -e TZ=Asia/Shanghai \
             --restart=always \
             lovechen/embyserver:4.7.14.0
     fi
@@ -2919,12 +2634,7 @@ function install_jellyfin_xiaoya_all_jellyfin() {
     INFO "您的架构是：$cpu_arch"
     case $cpu_arch in
     "x86_64" | *"amd64"*)
-        if docker pull nyanmisaka/jellyfin:240220-amd64-legacy; then
-            INFO "镜像拉取成功！"
-        else
-            ERROR "镜像拉取失败！"
-            exit 1
-        fi
+        docker_pull "nyanmisaka/jellyfin:240220-amd64-legacy"
         docker run -d \
             --name "$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_jellyfin_name.txt)" \
             -v ${NSSWITCH}:/etc/nsswitch.conf \
@@ -2939,15 +2649,11 @@ function install_jellyfin_xiaoya_all_jellyfin() {
             -p 7369:7359/udp \
             --privileged=true \
             --restart=always \
+            -e TZ=Asia/Shanghai \
             nyanmisaka/jellyfin:240220-amd64-legacy
         ;;
     "aarch64" | *"arm64"* | *"armv8"* | *"arm/v8"*)
-        if docker pull nyanmisaka/jellyfin:240220-arm64; then
-            INFO "镜像拉取成功！"
-        else
-            ERROR "镜像拉取失败！"
-            exit 1
-        fi
+        docker_pull "nyanmisaka/jellyfin:240220-arm64"
         docker run -d \
             --name "$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_jellyfin_name.txt)" \
             -v ${NSSWITCH}:/etc/nsswitch.conf \
@@ -2962,6 +2668,7 @@ function install_jellyfin_xiaoya_all_jellyfin() {
             -p 7369:7359/udp \
             --privileged=true \
             --restart=always \
+            -e TZ=Asia/Shanghai \
             nyanmisaka/jellyfin:240220-arm64
         ;;
     *)
@@ -2987,18 +2694,6 @@ function install_jellyfin_xiaoya_all_jellyfin() {
         localip=$(ip address | grep inet | grep -v 172.17 | grep -v 127.0.0.1 | grep -v inet6 | awk '{print $2}' | sed 's/addr://' | head -n1 | cut -f1 -d"/")
     fi
     INFO "请浏览器访问 ${Sky_Blue}http://${localip}:2346${Font} 登入 Jellyfin，用户名：${Sky_Blue}ailg${Font}   密码：${Sky_Blue}5678${Font}"
-
-}
-
-function docker_address_xiaoya_all_emby() {
-
-    get_config_dir
-
-    get_media_dir
-
-    pull_run_ddsderek_glue "/docker_address.sh"
-
-    INFO "替换DOCKER_ADDRESS完成！"
 
 }
 
@@ -3100,12 +2795,7 @@ $(cat ${DDSREM_CONFIG_DIR}/resilio_config_dir.txt)/cron.log 2>&1"
     else
         INFO '已经添加下面的记录到crontab定时任务容器'
         INFO "${CRON}"
-        if docker pull ddsderek/xiaoya-cron:latest; then
-            INFO "镜像拉取成功！"
-        else
-            ERROR "镜像拉取失败！"
-            exit 1
-        fi
+        docker_pull "ddsderek/xiaoya-cron:latest"
         CRON_PARAMETERS="--auto_update_all_pikpak=${auto_update_all_pikpak} \
 --auto_update_config=${auto_update_config} \
 --media_dir=$(cat ${DDSREM_CONFIG_DIR}/xiaoya_alist_media_dir.txt) \
@@ -3223,12 +2913,7 @@ function install_resilio() {
     if [ ! -d "${CONFIG_DIR}/downloads" ]; then
         mkdir -p "${CONFIG_DIR}/downloads"
     fi
-    if docker pull linuxserver/resilio-sync:latest; then
-        INFO "镜像拉取成功！"
-    else
-        ERROR "镜像拉取失败！"
-        exit 1
-    fi
+    docker_pull "linuxserver/resilio-sync:latest"
     if [ -n "${extra_parameters}" ]; then
         docker run -d \
             --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_resilio_name.txt)" \
@@ -3442,19 +3127,7 @@ function once_sync_emby_config() {
     else
         if docker container inspect xiaoya-cron > /dev/null 2>&1; then
             # 先更新 xiaoya-cron，再运行立刻同步
-            if docker pull containrrr/watchtower:latest; then
-                INFO "镜像拉取成功！"
-            else
-                ERROR "镜像拉取失败！"
-                exit 1
-            fi
-            docker run --rm \
-                -v /var/run/docker.sock:/var/run/docker.sock \
-                containrrr/watchtower:latest \
-                --run-once \
-                --cleanup \
-                xiaoya-cron
-            docker rmi containrrr/watchtower:latest
+            container_update xiaoya-cron
             sleep 10
             COMMAND="docker exec -it xiaoya-cron bash /app/command.sh"
         else
@@ -3584,18 +3257,27 @@ function install_xiaoya_emd() {
     done
 
     extra_parameters=
-    local RETURN_DATA
-    RETURN_DATA="$(data_crep "r" "install_xiaoya_emd")"
-    if [ "${RETURN_DATA}" == "None" ]; then
-        INFO "请输入运行参数（默认 --media /media ）"
-        WARN "如果需要更改此设置请注意容器目录映射，默认媒体库路径映射到容器内的 /media 文件夹下！"
-        read -erp "Extra parameters:" extra_parameters
-        [[ -z "${extra_parameters}" ]] && extra_parameters="--media /media"
-        data_crep "write" "install_xiaoya_emd"
+    container_run_extra_parameters=$(cat ${DDSREM_CONFIG_DIR}/container_run_extra_parameters.txt)
+    if [ "${container_run_extra_parameters}" == "true" ]; then
+        local RETURN_DATA
+        RETURN_DATA="$(data_crep "r" "install_xiaoya_emd")"
+        if [ "${RETURN_DATA}" == "None" ]; then
+            INFO "请输入运行参数（默认 --media /media ）"
+            WARN "如果需要更改此设置请注意容器目录映射，默认媒体库路径映射到容器内的 /media 文件夹下！"
+            WARN "警告！！！ 默认请勿修改 /media 路径！！！"
+            read -erp "Extra parameters:" extra_parameters
+            [[ -z "${extra_parameters}" ]] && extra_parameters="--media /media"
+            data_crep "write" "install_xiaoya_emd"
+        else
+            INFO "已读取您上次设置的运行参数：${RETURN_DATA} (默认不更改回车继续，如果需要更改请输入新参数)"
+            WARN "如果需要更改此设置请注意容器目录映射，默认媒体库路径映射到容器内的 /media 文件夹下！"
+            WARN "警告！！！ 默认请勿修改 /media 路径！！！"
+            read -erp "Extra parameters:" extra_parameters
+            [[ -z "${extra_parameters}" ]] && extra_parameters=${RETURN_DATA}
+        fi
     else
-        INFO "已读取您上次设置的运行参数：${RETURN_DATA} (默认不更改回车继续，如果需要更改请输入新参数)"
-        read -erp "Extra parameters:" extra_parameters
-        [[ -z "${extra_parameters}" ]] && extra_parameters=${RETURN_DATA}
+        extra_parameters="--media /media"
+        data_crep "write" "install_xiaoya_emd"
     fi
     script_extra_parameters="${extra_parameters}"
 
@@ -3616,12 +3298,7 @@ function install_xiaoya_emd() {
     fi
     run_extra_parameters="${extra_parameters}"
 
-    if docker pull ddsderek/xiaoya-emd:${IMAGE_VERSION}; then
-        INFO "镜像拉取成功！"
-    else
-        ERROR "镜像拉取失败！"
-        exit 1
-    fi
+    docker_pull "ddsderek/xiaoya-emd:${IMAGE_VERSION}"
 
     docker run -d \
         --name=xiaoya-emd \
@@ -3630,6 +3307,7 @@ function install_xiaoya_emd() {
         -v "${MEDIA_DIR}/xiaoya:/media" \
         -e "CYCLE=${cycle}" \
         -e "RESTART_AUTO_UPDATE=${RESTART_AUTO_UPDATE}" \
+        -e TZ=Asia/Shanghai \
         ${run_extra_parameters} \
         ddsderek/xiaoya-emd:${IMAGE_VERSION} \
         ${script_extra_parameters}
@@ -3667,6 +3345,8 @@ function main_xiaoya_emd() {
 
     echo -e "——————————————————————————————————————————————————————————————————————————————————"
     echo -e "${Blue}小雅元数据定时爬虫${Font}\n"
+    echo -e "${Sky_Blue}小雅元数据定时爬虫由 https://github.com/Rik-F5 更新维护，在此表示感谢！"
+    echo -e "具体详细配置参数请看项目README：https://github.com/Rik-F5/xiaoya_db${Font}\n"
     echo -e "1、安装"
     echo -e "2、更新"
     echo -e "3、卸载"
@@ -3774,11 +3454,11 @@ function main_xiaoya_all_emby() {
     echo -e "2、下载/解压 元数据"
     echo -e "3、安装Emby（可选择版本）"
     echo -e "4、替换DOCKER_ADDRESS（${Red}已弃用${Font}）"
-    echo -e "5、安装/更新/卸载 Resilio-Sync                当前安装状态：$(judgment_container "${xiaoya_resilio_name}")"
+    echo -e "5、安装/更新/卸载 Resilio-Sync                当前状态：$(judgment_container "${xiaoya_resilio_name}")"
     echo -e "6、立即同步小雅Emby config目录"
     echo -e "7、创建/删除 同步定时更新任务                 当前状态：$(judgment_xiaoya_notify_status)"
     echo -e "8、图形化编辑 emby_config.txt"
-    echo -e "9、安装/更新/卸载 小雅元数据定时爬虫          当前安装状态：$(judgment_container xiaoya-emd)"
+    echo -e "9、安装/更新/卸载 小雅元数据定时爬虫          当前状态：$(judgment_container xiaoya-emd)"
     echo -e "10、卸载Emby全家桶"
     echo -e "0、返回上级"
     echo -e "——————————————————————————————————————————————————————————————————————————————————"
@@ -3818,7 +3498,7 @@ function main_xiaoya_all_emby() {
         ;;
     4)
         clear
-        docker_address_xiaoya_all_emby
+        WARN "此功能已弃用！"
         return_menu "main_xiaoya_all_emby"
         ;;
     5)
@@ -3978,6 +3658,8 @@ function install_xiaoyahelper() {
         TG_CHOOSE="-tg"
     fi
 
+    docker_pull "library/alpine:3.18.2"
+
     XIAOYAHELPER_URL="https://xiaoyahelper.ddsrem.com/aliyun_clear.sh"
     if xiaoyahelper_install_check "${XIAOYAHELPER_URL}"; then
         return 0
@@ -4111,6 +3793,15 @@ function install_xiaoya_alist_tvbox() {
     read -erp "MEM_OPT:" MEM_OPT
     [[ -z "${MEM_OPT}" ]] && MEM_OPT="-Xmx512M"
 
+    INFO "是否使用内存优化版镜像 [Y/n]（默认 n 不使用）"
+    read -erp "Native:" choose_native
+    [[ -z "${choose_native}" ]] && choose_native="n"
+    if [[ ${choose_native} == [Yy] ]]; then
+        __choose_native="native"
+    else
+        __choose_native="latest"
+    fi
+
     container_run_extra_parameters=$(cat ${DDSREM_CONFIG_DIR}/container_run_extra_parameters.txt)
     if [ "${container_run_extra_parameters}" == "true" ]; then
         local RETURN_DATA
@@ -4134,12 +3825,7 @@ function install_xiaoya_alist_tvbox() {
         INFO "备份数据路径：${CONFIG_DIR}/xiaoya_backup"
     fi
 
-    if docker pull haroldli/xiaoya-tvbox:latest; then
-        INFO "镜像拉取成功！"
-    else
-        ERROR "镜像拉取失败！"
-        exit 1
-    fi
+    docker_pull "haroldli/xiaoya-tvbox:latest"
 
     if [ -n "${extra_parameters}" ]; then
         docker run -itd \
@@ -4147,21 +3833,23 @@ function install_xiaoya_alist_tvbox() {
             -p "${ALIST_PORT}":80 \
             -e ALIST_PORT="${ALIST_PORT}" \
             -e MEM_OPT="${MEM_OPT}" \
+            -e TZ=Asia/Shanghai \
             -v "${CONFIG_DIR}:/data" \
             ${extra_parameters} \
             --restart=always \
             --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_tvbox_name.txt)" \
-            haroldli/xiaoya-tvbox:latest
+            haroldli/xiaoya-tvbox:${__choose_native}
     else
         docker run -itd \
             -p "${HT_PORT}":4567 \
             -p "${ALIST_PORT}":80 \
             -e ALIST_PORT="${ALIST_PORT}" \
             -e MEM_OPT="${MEM_OPT}" \
+            -e TZ=Asia/Shanghai \
             -v "${CONFIG_DIR}:/data" \
             --restart=always \
             --name="$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_tvbox_name.txt)" \
-            haroldli/xiaoya-tvbox:latest
+            haroldli/xiaoya-tvbox:${__choose_native}
     fi
 
     INFO "安装完成！"
@@ -4188,9 +3876,10 @@ function uninstall_xiaoya_alist_tvbox() {
         echo -en "即将开始卸载小雅Alist-TVBox${Blue} $i ${Font}\r"
         sleep 1
     done
+    IMAGE_NAME="$(docker inspect --format='{{.Config.Image}}' "$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_tvbox_name.txt)")"
     docker stop "$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_tvbox_name.txt)"
     docker rm "$(cat ${DDSREM_CONFIG_DIR}/container_name/xiaoya_tvbox_name.txt)"
-    docker rmi haroldli/xiaoya-tvbox:latest
+    docker rmi "${IMAGE_NAME}"
     if [[ ${CLEAN_CONFIG} == [Yy] ]]; then
         INFO "清理配置文件..."
         if [ -f ${DDSREM_CONFIG_DIR}/xiaoya_alist_tvbox_config_dir.txt ]; then
@@ -4264,12 +3953,7 @@ function install_onelist() {
     read -erp "HT_PORT:" HT_PORT
     [[ -z "${HT_PORT}" ]] && HT_PORT="5245"
 
-    if docker pull msterzhang/onelist:latest; then
-        INFO "镜像拉取成功！"
-    else
-        ERROR "镜像拉取失败！"
-        exit 1
-    fi
+    docker_pull "msterzhang/onelist:latest"
 
     docker run -itd \
         -p "${HT_PORT}":5245 \
@@ -4387,12 +4071,7 @@ function install_portainer() {
     read -erp "TAG:" TAG
     [[ -z "${TAG}" ]] && TAG="latest"
 
-    if docker pull portainer/portainer-ce:${TAG}; then
-        INFO "镜像拉取成功！"
-    else
-        ERROR "镜像拉取失败！"
-        exit 1
-    fi
+    docker_pull "portainer/portainer-ce:${TAG}"
 
     docker run -itd \
         -p "${HTTPS_PORT}":9443 \
@@ -4504,12 +4183,7 @@ function install_auto_symlink() {
     INFO "请输入挂载目录（可设置多个）（PS：-v /media:/media）"
     read -erp "Volumes:" volumes
 
-    if docker pull shenxianmq/auto_symlink:latest; then
-        INFO "镜像拉取成功！"
-    else
-        ERROR "镜像拉取失败！"
-        exit 1
-    fi
+    docker_pull "shenxianmq/auto_symlink:latest"
 
     if [ -n "${volumes}" ]; then
         docker run -d \
@@ -4641,6 +4315,198 @@ function main_casaos() {
         main_casaos
         ;;
     esac
+
+}
+
+function main_docker_compose() {
+
+    echo -e "——————————————————————————————————————————————————————————————————————————————————"
+    echo -e "${Blue}Docker Compose 小雅及全家桶${Font}\n"
+    echo -e "${Sky_Blue}Docker Compose 安装方式由 https://link.monlor.com/ 更新维护，在此表示感谢！"
+    echo -e "具体详细介绍请看项目README：https://github.com/monlor/docker-xiaoya${Font}\n"
+    echo -e "1、安装"
+    echo -e "2、卸载"
+    echo -e "0、返回上级"
+    echo -e "——————————————————————————————————————————————————————————————————————————————————"
+    read -erp "请输入数字 [0-2]:" num
+    case "$num" in
+    1)
+        clear
+        INFO "是否使用加速源 [Y/n]（默认 N）"
+        read -erp "USE_PROXY:" USE_PROXY
+        [[ -z "${USE_PROXY}" ]] && USE_PROXY="n"
+        if [[ ${USE_PROXY} == [Yy] ]]; then
+            export GH_PROXY=https://gh.monlor.com/ IMAGE_PROXY=ghcr.monlor.com
+        fi
+        bash -c "$(curl -fsSL ${GH_PROXY}https://raw.githubusercontent.com/monlor/docker-xiaoya/main/install.sh)"
+        return_menu "main_docker_compose"
+        ;;
+    2)
+        clear
+        INFO "是否使用加速源 [Y/n]（默认 N）"
+        read -erp "USE_PROXY:" USE_PROXY
+        [[ -z "${USE_PROXY}" ]] && USE_PROXY="n"
+        if [[ ${USE_PROXY} == [Yy] ]]; then
+            export GH_PROXY=https://gh.monlor.com/ IMAGE_PROXY=ghcr.monlor.com
+        fi
+        bash -c "$(curl -fsSL ${GH_PROXY}https://raw.githubusercontent.com/monlor/docker-xiaoya/main/uninstall.sh)"
+        return_menu "main_docker_compose"
+        ;;
+    0)
+        clear
+        main_return
+        ;;
+    *)
+        clear
+        ERROR '请输入正确数字 [0-2]'
+        main_docker_compose
+        ;;
+    esac
+
+}
+
+function auto_choose_image_mirror() {
+
+    for i in "${!mirrors[@]}"; do
+        local output
+        output=$(
+            curl -s -o /dev/null -w '%{time_total}' --head --request GET "${mirrors[$i]}"
+            echo $? > /tmp/curl_exit_status_${i} &
+        )
+        status[$i]=$!
+        delays[$i]=$output
+    done
+    better_time=9999999999
+    for i in "${!mirrors[@]}"; do
+        local time_compare result
+        wait ${status[$i]}
+        result=$(cat /tmp/curl_exit_status_${i})
+        rm -f /tmp/curl_exit_status_${i}
+        if [ $result -eq 0 ]; then
+            if [ "${mirrors[$i]}" == "docker.io" ]; then
+                time_compare=$(awk -v n1="1" -v n2="$result" 'BEGIN {print (n1>n2)? "1":"0"}')
+                if [ $time_compare -eq 1 ]; then
+                    better_mirror=${mirrors[$i]}
+                    better_time=0
+                fi
+            else
+                time_compare=$(awk -v n1="$better_time" -v n2="$result" 'BEGIN {print (n1>n2)? "1":"0"}')
+                if [ $time_compare -eq 1 ]; then
+                    better_mirror=${mirrors[$i]}
+                    better_time=${delays[$i]}
+                fi
+            fi
+        fi
+    done
+    if [ -z "${better_mirror}" ]; then
+        return 1
+    else
+        echo -e "${better_mirror}" > ${DDSREM_CONFIG_DIR}/image_mirror.txt
+        if docker pull "${better_mirror}/library/hello-world:latest" &> /dev/null; then
+            docker rmi "${better_mirror}/library/hello-world:latest" &> /dev/null
+            return 0
+        else
+            return 1
+        fi
+    fi
+
+}
+
+function choose_image_mirror() {
+
+    local num
+    local current_mirror interface
+    current_mirror="$(cat "${DDSREM_CONFIG_DIR}/image_mirror.txt")"
+    declare -i s
+    local s=0
+    echo -e "——————————————————————————————————————————————————————————————————————————————————"
+    echo -e "${Blue}Docker镜像源选择\n${Font}"
+    echo -ne "${INFO} 界面加载中...${Font}\r"
+    interface="${Sky_Blue}绿色字体代表当前选中的镜像源"
+    interface="${interface}\n选择镜像源后会自动检测是否可连接，如果预选镜像源都无法使用请自定义镜像源${Font}\n"
+    local status=()
+    for i in "${!mirrors[@]}"; do
+        local output
+        output=$(
+            curl -s -o /dev/null -w '%{time_total}' --head --request GET "${mirrors[$i]}"
+            echo $? > /tmp/curl_exit_status_${i} &
+        )
+        status[$i]=$!
+        delays[$i]=$(printf "%.2f" $output)
+    done
+    for i in "${!mirrors[@]}"; do
+        wait ${status[$i]}
+        local result
+        result=$(cat /tmp/curl_exit_status_${i})
+        rm -f /tmp/curl_exit_status_${i}
+        local color=
+        local font=
+        if [[ "${mirrors[$i]}" == "${current_mirror}" ]]; then
+            color="${Green}"
+            font="${Font}"
+            s+=1
+        fi
+        if [ $result -eq 0 ]; then
+            interface="${interface}\n$((i + 1))、${color}${mirrors[$i]}${font} (${Green}可用${Font} ${Sky_Blue}延迟: ${delays[$i]}秒${Font})"
+        else
+            interface="${interface}\n$((i + 1))、${color}${mirrors[$i]}${font} (${Red}不可用${Font})"
+        fi
+        z=$((i + 2))
+    done
+    if user_delay=$(curl -s -o /dev/null -w '%{time_total}' --head --request GET "$(cat "${DDSREM_CONFIG_DIR}/image_mirror_user.txt")"); then
+        USER_TEST_STATUS="(${Green}可用${Font} ${Sky_Blue}延迟: ${user_delay}秒${Font})"
+    else
+        USER_TEST_STATUS="(${Red}不可用${Font})"
+    fi
+    if [ "${s}" == "1" ]; then
+        interface="${interface}\n${z}、自定义源：$(cat "${DDSREM_CONFIG_DIR}/image_mirror_user.txt") ${USER_TEST_STATUS}"
+    else
+        interface="${interface}\n${z}、${Green}自定义源：$(cat "${DDSREM_CONFIG_DIR}/image_mirror_user.txt")${Font} ${USER_TEST_STATUS}"
+    fi
+    echo -e "${interface}\n0、返回上级"
+    echo -e "——————————————————————————————————————————————————————————————————————————————————"
+    read -erp "请输入数字 [0-${z}]:" num
+    if [ "${num}" == "0" ]; then
+        clear
+        "${1}"
+    elif [ "${num}" == "${z}" ]; then
+        clear
+        INFO "请输入自定义源地址（当前自定义源地址为：$(cat "${DDSREM_CONFIG_DIR}/image_mirror_user.txt")，回车默认不修改）"
+        read -erp "custom_url:" custom_url
+        [[ -z "${custom_url}" ]] && custom_url=$(cat "${DDSREM_CONFIG_DIR}/image_mirror_user.txt")
+        echo "${custom_url}" > ${DDSREM_CONFIG_DIR}/image_mirror.txt
+        echo "${custom_url}" > ${DDSREM_CONFIG_DIR}/image_mirror_user.txt
+    else
+        for i in "${!mirrors[@]}"; do
+            if [[ "$((i + 1))" == "${num}" ]]; then
+                echo -e "${mirrors[$i]}" > ${DDSREM_CONFIG_DIR}/image_mirror.txt
+                break
+            fi
+        done
+    fi
+    clear
+    INFO "开始镜像源地址连通性测试..."
+    local retries=0
+    local max_retries=3
+    IMAGE_MIRROR=$(cat "${DDSREM_CONFIG_DIR}/image_mirror.txt")
+    while [ $retries -lt $max_retries ]; do
+        if docker pull "${IMAGE_MIRROR}/library/hello-world:latest"; then
+            INFO "地址连通性测试正常！"
+            break
+        else
+            WARN "地址连通性测试失败，正在进行第 $((retries + 1)) 次重试..."
+            retries=$((retries + 1))
+        fi
+    done
+    if [ $retries -eq $max_retries ]; then
+        ERROR "地址连通性测试失败，已达到最大重试次数，请选择镜像源或者自定义镜像源！"
+    else
+        docker rmi "${IMAGE_MIRROR}/library/hello-world:latest"
+    fi
+    INFO "按任意键返回 Docker镜像源选择 菜单"
+    read -rs -n 1 -p ""
+    clear
+    choose_image_mirror "${1}"
 
 }
 
@@ -4805,7 +4671,7 @@ function reset_script_configuration() {
 
         first_init
         clear
-        main
+        main_return
     else
         return 0
     fi
@@ -4848,9 +4714,10 @@ function main_advanced_configuration() {
     echo -e "3、重置脚本配置"
     echo -e "4、开启/关闭 磁盘容量检测                     当前状态：${_disk_capacity_detection}"
     echo -e "5、开启/关闭 小雅连通性检测                   当前状态：${_xiaoya_connectivity_detection}"
+    echo -e "6、Docker镜像源选择"
     echo -e "0、返回上级"
     echo -e "——————————————————————————————————————————————————————————————————————————————————"
-    read -erp "请输入数字 [0-5]:" num
+    read -erp "请输入数字 [0-6]:" num
     case "$num" in
     1)
         clear
@@ -4892,13 +4759,17 @@ function main_advanced_configuration() {
         clear
         main_advanced_configuration
         ;;
+    6)
+        clear
+        choose_image_mirror "main_advanced_configuration"
+        ;;
     0)
         clear
         main_return
         ;;
     *)
         clear
-        ERROR '请输入正确数字 [0-5]'
+        ERROR '请输入正确数字 [0-6]'
         main_advanced_configuration
         ;;
     esac
@@ -4909,8 +4780,8 @@ function main_other_tools() {
 
     echo -e "——————————————————————————————————————————————————————————————————————————————————"
     echo -e "${Blue}其他工具${Font}\n"
-    echo -e "1、安装/更新/卸载 Portainer                   当前安装状态：$(judgment_container "${portainer_name}")"
-    echo -e "2、安装/更新/卸载 Auto_Symlink                当前安装状态：$(judgment_container "${auto_symlink_name}")"
+    echo -e "1、安装/更新/卸载 Portainer                   当前状态：$(judgment_container "${portainer_name}")"
+    echo -e "2、安装/更新/卸载 Auto_Symlink                当前状态：$(judgment_container "${auto_symlink_name}")"
     echo -e "3、查看系统磁盘挂载"
     echo -e "4、安装/卸载 CasaOS"
     echo -e "0、返回上级"
@@ -4953,19 +4824,28 @@ function main_other_tools() {
 
 function main_return() {
 
+    local out_tips
     cat /tmp/xiaoya_alist
-
-    echo -e "1、安装/更新/卸载 小雅Alist                   当前安装状态：$(judgment_container "${xiaoya_alist_name}")
-2、安装/卸载 小雅Emby全家桶                   当前安装状态：$(judgment_container "${xiaoya_emby_name}")
-3、安装/卸载 小雅Jellyfin全家桶               当前安装状态：$(judgment_container "${xiaoya_jellyfin_name}")
-4、安装/更新/卸载 小雅助手（xiaoyahelper）    当前安装状态：$(judgment_container xiaoyakeeper)
-5、安装/更新/卸载 小雅Alist-TVBox             当前安装状态：$(judgment_container "${xiaoya_tvbox_name}")
-6、安装/更新/卸载 Onelist                     当前安装状态：$(judgment_container "${xiaoya_onelist_name}")"
-    echo -e "7、其他工具 | Script info: ${DATE_VERSION} OS: ${_os},${OSNAME},${is64bit}"
-    echo -e "8、高级配置 | Docker version: ${Blue}${DOCKER_VERSION}${Font} ${IP_CITY}"
-    echo -e "0、退出脚本 | Thanks: ${Sky_Blue}heiheigui,xiaoyaLiu,Harold,AI老G${Font}"
-    echo -e "——————————————————————————————————————————————————————————————————————————————————"
-    read -erp "请输入数字 [0-8]:" num
+    echo -ne "${INFO} 主界面加载中...${Font}\r"
+    if ! curl -s -o /dev/null -w '%{time_total}' --head --request GET "$(cat "${DDSREM_CONFIG_DIR}/image_mirror.txt")" &> /dev/null; then
+        if auto_choose_image_mirror; then
+            out_tips="${Green}提示：已为您自动配置Docker镜像源地址为: $(cat "${DDSREM_CONFIG_DIR}/image_mirror.txt")${Font}\n"
+        else
+            out_tips="${Red}警告：当前环境无法访问Docker镜像仓库，请输入96进入Docker镜像源设置更改镜像源${Font}\n"
+        fi
+    fi
+    echo -e "${out_tips}1、安装/更新/卸载 小雅Alist                   当前状态：$(judgment_container "${xiaoya_alist_name}")
+2、安装/卸载 小雅Emby全家桶                   当前状态：$(judgment_container "${xiaoya_emby_name}")
+3、安装/卸载 小雅Jellyfin全家桶               当前状态：$(judgment_container "${xiaoya_jellyfin_name}")
+4、安装/更新/卸载 小雅助手（xiaoyahelper）    当前状态：$(judgment_container xiaoyakeeper)
+5、安装/更新/卸载 小雅Alist-TVBox             当前状态：$(judgment_container "${xiaoya_tvbox_name}")
+6、安装/更新/卸载 Onelist                     当前状态：$(judgment_container "${xiaoya_onelist_name}")
+7、Docker Compose 安装/卸载 小雅及全家桶（实验性功能）
+8、其他工具 | Script info: ${DATE_VERSION} OS: ${_os},${OSNAME},${is64bit}
+9、高级配置 | Docker version: ${Blue}${DOCKER_VERSION}${Font} ${IP_CITY}
+0、退出脚本 | Thanks: ${Sky_Blue}heiheigui,xiaoyaLiu,Harold,AI老G,monlor,Rik${Font}
+——————————————————————————————————————————————————————————————————————————————————"
+    read -erp "请输入数字 [0-9]:" num
     case "$num" in
     1)
         clear
@@ -4993,11 +4873,19 @@ function main_return() {
         ;;
     7)
         clear
-        main_other_tools
+        main_docker_compose
         ;;
     8)
         clear
+        main_other_tools
+        ;;
+    9)
+        clear
         main_advanced_configuration
+        ;;
+    96)
+        clear
+        choose_image_mirror "main_return"
         ;;
     0)
         clear
@@ -5005,18 +4893,17 @@ function main_return() {
         ;;
     *)
         clear
-        ERROR '请输入正确数字 [0-8]'
+        ERROR '请输入正确数字 [0-9]'
         main_return
         ;;
     esac
 }
 
-function main() {
-    clear
-    main_return
-}
-
 function first_init() {
+
+    clear
+
+    INFO "初始化中，请稍等...."
 
     root_need
 
@@ -5062,6 +4949,15 @@ function first_init() {
         echo 'true' > ${DDSREM_CONFIG_DIR}/xiaoya_connectivity_detection.txt
     fi
 
+    if [ ! -f "${DDSREM_CONFIG_DIR}/image_mirror.txt" ]; then
+        if ! auto_choose_image_mirror; then
+            echo 'docker.io' > ${DDSREM_CONFIG_DIR}/image_mirror.txt
+        fi
+    fi
+    if [ ! -f "${DDSREM_CONFIG_DIR}/image_mirror_user.txt" ]; then
+        touch ${DDSREM_CONFIG_DIR}/image_mirror_user.txt
+    fi
+
     if [ -f ${DDSREM_CONFIG_DIR}/xiaoya_emby_url.txt ]; then
         rm -rf ${DDSREM_CONFIG_DIR}/xiaoya_emby_url.txt
     fi
@@ -5094,7 +4990,7 @@ function first_init() {
 if [ ! "$*" ]; then
     first_init
     clear
-    main
+    main_return
 else
     first_init
     clear
